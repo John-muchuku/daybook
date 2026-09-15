@@ -1,18 +1,20 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
-
-import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
-
-SplashScreen.preventAutoHideAsync();
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+import Head from "expo-router/head";
+import { Stack } from "expo-router";
+import { DaybookProvider } from "../hooks/useDaybook";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+export default function RootLayout() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AnimatedSplashOverlay />
-      <AppTabs />
-    </ThemeProvider>
+    <SafeAreaProvider>
+      <DaybookProvider>
+        <Head>
+          <title>Daybook — A little more space</title>
+          <meta
+            name="description"
+            content="Your tasks, notes, and a little more space for what matters. A private, local-first workspace."
+          />
+        </Head>
+        <Stack screenOptions={{ headerShown: false }} />
+      </DaybookProvider>
+    </SafeAreaProvider>
   );
 }
