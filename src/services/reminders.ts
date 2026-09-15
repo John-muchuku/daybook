@@ -1,6 +1,6 @@
 import { Platform } from "react-native";
-import * as Notifications from "expo-notifications";
-import { Task } from "../types";
+import * as Notifications from "./local-notifications";
+import type { Task } from "../types";
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowBanner: true,

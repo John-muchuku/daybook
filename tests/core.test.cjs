@@ -208,7 +208,18 @@ test("reminders replace schedules, apply offsets, cancel completed tasks, and op
   };
   const service = load("src/services/reminders.ts", {
     "react-native": { Platform: { OS: "android" } },
-    "expo-notifications": notifications,
+    ...Object.fromEntries(
+      [
+        "NotificationsHandler",
+        "NotificationsEmitter",
+        "NotificationPermissions",
+        "setNotificationChannelAsync",
+        "scheduleNotificationAsync",
+        "cancelScheduledNotificationAsync",
+        "NotificationChannelManager.types",
+        "Notifications.types",
+      ].map((name) => [`expo-notifications/build/${name}`, notifications]),
+    ),
   });
   const task = {
     id: "reminder1",
@@ -248,4 +259,78 @@ test("reminders replace schedules, apply offsets, cancel completed tasks, and op
   assert.equal(opened, task.id);
   unsubscribe();
   assert.equal(calls.at(-1), "removed");
+});
+
+test("local reminder runtime imports never load remote push registration on native", () => {
+  const root = path.join(__dirname, "..");
+  const packageRoot = path.dirname(
+    require.resolve("expo-notifications/package.json"),
+  );
+  for (const platform of ["android", "ios"]) {
+    const visited = new Set();
+    function resolveNative(base) {
+      const stem = base.replace(/\.js$/, "");
+      const candidates = [
+        `${stem}.${platform}.js`,
+        `${stem}.native.js`,
+        `${stem}.js`,
+        `${stem}.ts`,
+      ];
+      const found = candidates.find((candidate) => fs.existsSync(candidate));
+      assert(found, `Missing notification module: ${base}`);
+      return found;
+    }
+    function visit(file) {
+      if (visited.has(file)) return;
+      visited.add(file);
+      assert(
+        !/(?:DevicePushTokenAutoRegistration|TokenEmitter|PushTokenManager|ServerRegistrationModule|warnOfExpoGoPushUsage)/.test(
+          file,
+        ),
+        `Remote-push import on ${platform}: ${file}`,
+      );
+      assert.notEqual(file, path.join(packageRoot, "build/index.js"));
+      const source = ts.createSourceFile(
+        file,
+        fs.readFileSync(file, "utf8"),
+        ts.ScriptTarget.Latest,
+        true,
+      );
+      for (const statement of source.statements) {
+        if (
+          !(
+            ts.isImportDeclaration(statement) ||
+            ts.isExportDeclaration(statement)
+          ) ||
+          !statement.moduleSpecifier
+        )
+          continue;
+        if (statement.isTypeOnly || statement.importClause?.isTypeOnly)
+          continue;
+        const specifier = statement.moduleSpecifier.text;
+        if (specifier === "expo-notifications")
+          assert.fail("Runtime root-barrel import reintroduced");
+        if (specifier.startsWith("expo-notifications/"))
+          visit(
+            resolveNative(
+              path.join(
+                packageRoot,
+                specifier.slice("expo-notifications/".length),
+              ),
+            ),
+          );
+        else if (specifier.startsWith("."))
+          visit(resolveNative(path.resolve(path.dirname(file), specifier)));
+      }
+    }
+    visit(path.join(root, "src/services/reminders.ts"));
+    assert(
+      [...visited].some((file) =>
+        file.endsWith("scheduleNotificationAsync.js"),
+      ),
+    );
+    assert(
+      [...visited].some((file) => file.endsWith("NotificationsEmitter.js")),
+    );
+  }
 });

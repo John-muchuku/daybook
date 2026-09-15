@@ -55,6 +55,8 @@ Browser journeys verified at desktop and 390px mobile widths: task capture, tomo
 
 ### Device release checks
 
+Local reminders can run in Expo Go. The native adapter imports only local-notification modules because the SDK 57 root package import also initializes remote-push registration, which throws in Android Expo Go. These internal module paths have a regression check and should be reviewed during SDK upgrades.
+
 Use an iOS and Android development build to verify actual notification delivery, tap-to-open after a cold start, permissions, keyboard behavior, and swipe/haptic feedback. Web cannot schedule device reminders and clearly explains this when one is requested.
 
 ### Data volume
